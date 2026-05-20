@@ -3,6 +3,7 @@
 // TODO: minimized mode (e.g. RTC_ymd_to_days_since_epoch())
 // TODO: test RTC_local_time_split()
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -40,6 +41,24 @@ bool RTC_is_leap_year(RTC_UINT year)
 		return false;
 	return true;
 #endif
+}
+
+/*****************************************************************************
+* Return the number of days in the month. January is month 1. Returns 0 on
+* error.
+*/
+RTC_UINT RTC_get_days_in_month(RTC_UINT month, RTC_UINT year)
+{
+	if ((month == 0) || (month > 12))
+		return 0;
+
+	if (month == 2)
+	{
+		if (RTC_is_leap_year(year))
+			return 29;
+		return 28;
+	}
+	return days_in_month[month-1];
 }
 
 /*****************************************************************************
