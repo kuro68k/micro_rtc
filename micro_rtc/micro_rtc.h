@@ -3,7 +3,7 @@
 /******************************************************************************
 * Configuration
 */
-#define RTC_BITS_8	// comment out to use 32 bits
+//#define RTC_BITS_8	// comment out to use 32 bits
 
 // comment out to use split mode (RTC_time)
 #define RTC_MODE_SECONDS_SINCE_EPOCH	// uses RTC_seconds_since_epoch
@@ -28,6 +28,8 @@
 #define	SECONDS_PER_NON_LEAP_YEAR	(SECONDS_PER_DAY * 365)
 #define	SECONDS_PER_LEAP_YEAR		(SECONDS_PER_DAY * 366)
 #define SECONDS_PER_LEAP_CENTURY	(3155760000)
+
+#define UNIX_TIMESTAMP_AT_EPOCH		(946684800)
 
 // convert to seconds
 // useful for calculating timezone offsets
@@ -84,6 +86,7 @@ extern volatile RTC_TIME_t RTC_time;
 * Public functions
 */
 extern bool RTC_is_leap_year(RTC_UINT year);
+extern RTC_UINT RTC_get_days_in_month(RTC_UINT month, RTC_UINT year);
 extern RTC_UINT RTC_day_of_week(RTC_TIME_t split);
 extern uint32_t RTC_split_to_seconds_since_epoch(RTC_TIME_t split);
 extern void RTC_seconds_since_epoch_to_split(uint32_t seconds_since_epoch, RTC_TIME_t *split);
