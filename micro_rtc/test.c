@@ -139,7 +139,7 @@ int main(void)
 	printf("RTC_day_of_week()\n");
 	for (uint32_t i = 0; i < ARRAY_COUNT(test_days_of_week); i++)
 	{
-		RTC_UINT dow = RTC_day_of_week(test_days_of_week[i].split);
+		RTC_UINT dow = RTC_day_of_week(&test_days_of_week[i].split);
 		if (dow != test_days_of_week[i].dow)
 		{
 			printf(
@@ -157,7 +157,7 @@ int main(void)
 	for (uint32_t i = 0; i < ARRAY_COUNT(test_split_to_seconds_since_epoch); i++)
 	{
 		uint32_t seconds_since_epoch = RTC_split_to_seconds_since_epoch(
-			test_split_to_seconds_since_epoch[i].split);
+			&test_split_to_seconds_since_epoch[i].split);
 		if (seconds_since_epoch != test_split_to_seconds_since_epoch[i].seconds_since_epoch)
 		{
 			printf("Error line %" PRIu32 ", want %" PRIu32 ", got %" PRIu32 "\n",
@@ -229,7 +229,7 @@ int main(void)
 	for (uint32_t i = 0; i < ARRAY_COUNT(test_ymd_to_days_since_epoch); i++)
 	{
 		uint32_t days_since_epoch = RTC_ymd_to_days_since_epoch(
-			test_ymd_to_days_since_epoch[i].split);
+			&test_ymd_to_days_since_epoch[i].split);
 		if (days_since_epoch != test_ymd_to_days_since_epoch[i].days_since_epoch)
 		{
 			printf("Error line %" PRIu32 ", want %" PRIu32 ", got %" PRIu32 "\n",

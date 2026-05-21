@@ -65,21 +65,21 @@ RTC_UINT RTC_get_days_in_month(RTC_UINT month, RTC_UINT year)
 * Get the day of the week. 0 = Monday.
 * Month = 1-12, day = 1-31.
 */
-RTC_UINT RTC_day_of_week(RTC_TIME_t split)
+RTC_UINT RTC_day_of_week(const RTC_TIME_t *split)
 {
-	uint32_t	dow = split.day;
+	uint32_t	dow = split->day;
 
 	RTC_UINT m = 1;
-	while (m < split.month)
+	while (m < split->month)
 	{
 		dow += days_in_month[m - 1];
-		if ((m == 2) && RTC_is_leap_year(split.year))
+		if ((m == 2) && RTC_is_leap_year(split->year))
 			dow++;
 		m++;
 	}
 
 	RTC_UINT y = RTC_EPOCH_YEAR;
-	while (y < split.year)
+	while (y < split->year)
 	{
 		dow += 365;
 		if (RTC_is_leap_year(y))
@@ -96,11 +96,11 @@ RTC_UINT RTC_day_of_week(RTC_TIME_t split)
 * Convert RTC time to seconds since epoch.
 * Note that month is 1-12, day is 1-31.
 */
-uint32_t RTC_split_to_seconds_since_epoch(RTC_TIME_t split)
+uint32_t RTC_split_to_seconds_since_epoch(const RTC_TIME_t *split)
 {
-	uint32_t seconds_since_epoch = split.second;
-	seconds_since_epoch += split.minute * 60;
-	seconds_since_epoch += split.hour * SECONDS_PER_HOUR;
+	uint32_t seconds_since_epoch = split->second;
+	seconds_since_epoch += split->minute * 60;
+	seconds_since_epoch += split->hour * SECONDS_PER_HOUR;
 
 	return seconds_since_epoch + RTC_ymd_to_days_since_epoch(split) * SECONDS_PER_DAY;
 }
@@ -255,21 +255,21 @@ void RTC_seconds_since_epoch_to_split_ex(
 * Convert D/M/Y to days since epoch.
 * Note that month is 1-12, day is 1-31.
 */
-uint32_t RTC_ymd_to_days_since_epoch(RTC_TIME_t split)
+uint32_t RTC_ymd_to_days_since_epoch(const RTC_TIME_t *split)
 {
-	uint32_t days = split.day - 1;
+	uint32_t days = split->day - 1;
 
 	RTC_UINT m = 1;
-	while (m < split.month)
+	while (m < split->month)
 	{
 		days += days_in_month[m-1];
-		if ((m == 2) && RTC_is_leap_year(split.year))
+		if ((m == 2) && RTC_is_leap_year(split->year))
 			days++;
 		m++;
 	}
 
 #ifdef RTC_MODE_DIV_MUL
-	RTC_UINT y = split.year - RTC_EPOCH_YEAR;
+	RTC_UINT y = split->year - RTC_EPOCH_YEAR;
 	if (y > 0)
 	{
 		days += y * 365;
@@ -318,13 +318,13 @@ uint32_t RTC_dst_start_seconds_since_epoch_eu(RTC_UINT year)
 {
 	RTC_TIME_t split = { .year = year, .month = 3 };
 	split.day = RTC_dst_start_day_eu(year);
-	return RTC_split_to_seconds_since_epoch(split);
+	return RTC_split_to_seconds_since_epoch(&split);
 }
 uint32_t RTC_dst_end_seconds_since_epoch_eu(RTC_UINT year)
 {
 	RTC_TIME_t split = { .year = year, .month = 10 };
 	split.day = RTC_dst_end_day_eu(year);
-	return RTC_split_to_seconds_since_epoch(split);
+	return RTC_split_to_seconds_since_epoch(&split);
 }
 
 /*****************************************************************************
