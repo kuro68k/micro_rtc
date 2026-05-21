@@ -43,6 +43,14 @@ bool RTC_is_leap_year(RTC_UINT year)
 #endif
 }
 
+bool RTC_is_leap_year_sse(uint32_t seconds_since_epoch)
+{
+	RTC_TIME_t split;
+	bool is_leap_year;
+	RTC_seconds_since_epoch_to_split_ex(seconds_since_epoch, &split, &is_leap_year, RTC_DEPTH_Y);
+	return is_leap_year;
+}
+
 /*****************************************************************************
 * Return the number of days in the month. January is month 1. Returns 0 on
 * error.
@@ -65,7 +73,7 @@ RTC_UINT RTC_days_in_month(RTC_UINT month, RTC_UINT year)
 * Get the day of the week. 0 = Monday.
 * Month = 1-12, day = 1-31.
 */
-RTC_UINT RTC_day_of_week(const RTC_TIME_t *split)
+RTC_UINT RTC_day_of_week_split(const RTC_TIME_t *split)
 {
 	uint32_t	dow = split->day;
 
@@ -92,11 +100,16 @@ RTC_UINT RTC_day_of_week(const RTC_TIME_t *split)
 	return dow;
 }
 
+RTC_UINT RTC_day_of_week_sse(uint32_t seconds_since_epoch)
+{
+	return (seconds_since_epoch % (7 * SECONDS_PER_DAY)) / SECONDS_PER_DAY;
+}
+
 /*****************************************************************************
 * Get the day of the year. 0 = January 1st.
 * Month = 1-12, day = 1-31.
 */
-RTC_UINT RTC_day_of_year(const RTC_TIME_t *split)
+RTC_UINT RTC_day_of_year_split(const RTC_TIME_t *split)
 {
 	uint32_t	doy = split->day;
 
@@ -112,11 +125,18 @@ RTC_UINT RTC_day_of_year(const RTC_TIME_t *split)
 	return doy;
 }
 
+RTC_UINT RTC_day_of_year_sse(uint32_t seconds_since_epoch)
+{
+	RTC_TIME_t split;
+	RTC_seconds_since_epoch_to_split_ex(seconds_since_epoch, &split, NULL, RTC_DEPTH_YMD);
+	return RTC_day_of_year_split(&split);
+}
+
 /*****************************************************************************
 * Get the day of the week. 0 = Monday.
 * Month = 1-12, day = 1-31.
 */
-void RTC_day_of_week_and_year(const RTC_TIME_t *split, RTC_UINT* day_of_week, RTC_UINT* day_of_year)
+void RTC_day_of_week_and_year_split(const RTC_TIME_t *split, RTC_UINT* day_of_week, RTC_UINT* day_of_year)
 {
 	uint32_t	dow = split->day - 1;	// 2000/01/01 is day zero
 
@@ -142,6 +162,13 @@ void RTC_day_of_week_and_year(const RTC_TIME_t *split, RTC_UINT* day_of_week, RT
 	dow += 5;	// 2000/01/01 is a Saturday
 	dow %= 7;
 	*day_of_week = dow;
+}
+
+void RTC_day_of_week_and_year_sse(uint32_t seconds_since_epoch, RTC_UINT* day_of_week, RTC_UINT* day_of_year)
+{
+	RTC_TIME_t split;
+	RTC_seconds_since_epoch_to_split_ex(seconds_since_epoch, &split, NULL, RTC_DEPTH_YMD);
+	RTC_day_of_week_and_year_split(&split, day_of_week, day_of_year);
 }
 
 /*****************************************************************************
@@ -194,7 +221,8 @@ void RTC_seconds_since_epoch_to_split_ex(
 	for (;;)
 	{
 		uint32_t seconds_this_decade;
-		if (RTC_is_leap_year(split->year))
+		leap_year = RTC_is_leap_year(split->year);
+		if (leap_year)
 			seconds_this_decade = (SECONDS_PER_NON_LEAP_YEAR * 7) + (SECONDS_PER_LEAP_YEAR * 3);
 		else
 			seconds_this_decade = (SECONDS_PER_NON_LEAP_YEAR * 8) + (SECONDS_PER_LEAP_YEAR * 2);
@@ -304,7 +332,7 @@ void RTC_seconds_since_epoch_to_split_ex(
 }
 
 /*****************************************************************************
-* Convert D/M/Y to days since epoch.
+* Convert D/M/Y to days since epoch. Seconds is at 00:00:00 on that day.
 * Note that month is 1-12, day is 1-31.
 */
 uint32_t RTC_ymd_to_days_since_epoch(const RTC_TIME_t *split)
@@ -368,13 +396,13 @@ RTC_UINT RTC_dst_end_day_eu(RTC_UINT year)
 */
 uint32_t RTC_dst_start_seconds_since_epoch_eu(RTC_UINT year)
 {
-	RTC_TIME_t split = { .year = year, .month = 3 };
+	RTC_TIME_t split = { .year = year, .month = 3, .hour = 0, .minute = 0, .second = 0 };
 	split.day = RTC_dst_start_day_eu(year);
 	return RTC_split_to_seconds_since_epoch(&split);
 }
 uint32_t RTC_dst_end_seconds_since_epoch_eu(RTC_UINT year)
 {
-	RTC_TIME_t split = { .year = year, .month = 10 };
+	RTC_TIME_t split = { .year = year, .month = 10, .hour = 0, .minute = 0, .second = 0 };
 	split.day = RTC_dst_end_day_eu(year);
 	return RTC_split_to_seconds_since_epoch(&split);
 }
@@ -394,25 +422,36 @@ bool RTC_seconds_since_epoch_is_in_dst_eu(uint32_t seconds_since_epoch, bool *le
 }
 
 /*****************************************************************************
-* Get local time from UTC. Returns 0 on underflow.
-* eu_dst enables DST adjustment of the returned value.
+* Add seconds. Seconds can be negative to subtract time. On underflow,
+* returns 0. No overflow check is made.
 */
-uint32_t RTC_local_time_split(
-		RTC_UINT year, RTC_UINT month, RTC_UINT day,
-		RTC_UINT hour, RTC_UINT minute, RTC_UINT second,
-		int32_t timezone_offset_seconds, bool eu_dst)
+uint32_t RTC_add_seconds_sse(uint32_t seconds_since_epoch, int32_t seconds)
 {
-	uint32_t seconds_since_epoch = 0;
-	int32_t seconds_offset = timezone_offset_seconds;
-	if ((seconds_offset < 0) && (seconds_since_epoch < abs(seconds_offset)))
-		seconds_since_epoch = 0;
+	if (seconds < 0)
+	{
+		if (seconds_since_epoch < abs(seconds))
+			seconds_since_epoch = 0;
+		else
+			seconds_since_epoch += seconds;
+	}
 	else
-		seconds_since_epoch += seconds_offset;
-
-	if (eu_dst && RTC_seconds_since_epoch_is_in_dst_eu(seconds_since_epoch, NULL))
-		seconds_since_epoch += SECONDS_PER_HOUR;
-
+		seconds_since_epoch += seconds;
 	return seconds_since_epoch;
+}
+
+void RTC_add_seconds_split(RTC_TIME_t *split, int32_t seconds)
+{
+	uint32_t seconds_since_epoch = RTC_split_to_seconds_since_epoch(split);
+	if (seconds < 0)
+	{
+		if (seconds_since_epoch < abs(seconds))
+			seconds_since_epoch = 0;
+		else
+			seconds_since_epoch += seconds;
+	}
+	else
+		seconds_since_epoch += seconds;
+	RTC_seconds_since_epoch_to_split(seconds_since_epoch, split);
 }
 
 /*****************************************************************************
@@ -458,7 +497,7 @@ uint32_t RTC_get_time_seconds_since_epoch(void)
 #else
 	RTC_TIME_t temp;
 	RTC_get_time(&temp);
-	return RTC_split_to_seconds_since_epoch(temp);
+	return RTC_split_to_seconds_since_epoch(&temp);
 #endif
 }
 

@@ -3,10 +3,17 @@
 /******************************************************************************
 * Configuration
 */
-//#define RTC_BITS_8	// comment out to use 32 bits
+#define RTC_BITS_8	// comment out to use 32 bits
+
+//#define	RTC_MINIMAL_RTC_TIME_T			// use the least possible memory for RTC_TIME_T,
+										// at the expense of alignment on 32 bit systems
+
+#if defined(RTC_MINIMAL_RTC_TIME_T) && defined(RTC_BITS_8)
+#error RTC_MINIMAL_RTC_TIME_T makes no sense in 8 bit mode (RTC_BITS_8 defined)
+#endif
 
 // comment out to use split mode (RTC_time)
-#define RTC_MODE_SECONDS_SINCE_EPOCH	// uses RTC_seconds_since_epoch
+//#define RTC_MODE_SECONDS_SINCE_EPOCH	// uses RTC_seconds_since_epoch
 
 // comment out to use iteration for cacluations
 #define	RTC_MODE_DIV_MUL				// use division and multiplication
@@ -66,10 +73,22 @@ enum {
 	RTC_TUESDAY, RTC_WEDNESDAY, RTC_THURSDAY, RTC_FRIDAY, RTC_SATURDAY, RTC_SUNDAY
 };
 
+#ifndef RTC_MINIMAL_RTC_TIME_T
+
 typedef struct {
 	RTC_UINT	year, month, day;
 	RTC_UINT	hour, minute, second;
 } RTC_TIME_t;
+
+#else
+
+typedef struct __attribute__((__packed__))  {
+	uint16_t year;
+	uint8_t month, day;
+	uint8_t hour, minute, second;
+} RTC_TIME_t;
+
+#endif
 
 /******************************************************************************
 * Public variables
@@ -86,16 +105,43 @@ extern volatile RTC_TIME_t RTC_time;
 * Public functions
 */
 extern bool RTC_is_leap_year(RTC_UINT year);
+extern bool RTC_is_leap_year_sse(uint32_t seconds_since_epoch);
+
 extern RTC_UINT RTC_days_in_month(RTC_UINT month, RTC_UINT year);
-extern RTC_UINT RTC_day_of_week(const RTC_TIME_t *split);
-extern RTC_UINT RTC_day_of_year(const RTC_TIME_t* split);
-extern void RTC_day_of_week_and_year(const RTC_TIME_t* split, RTC_UINT* day_of_week, RTC_UINT* day_of_year);
+
+extern RTC_UINT RTC_day_of_week_split(const RTC_TIME_t *split);
+extern RTC_UINT RTC_day_of_week_sse(uint32_t seconds_since_epoch);
+#define RTC_day_of_week(X) _Generic((X), \
+	RTC_TIME_t*: RTC_day_of_week_split, \
+    const RTC_TIME_t*: RTC_day_of_week_split, \
+    uint32_t: RTC_day_of_week_sse \
+)(X)
+
+extern RTC_UINT RTC_day_of_year_split(const RTC_TIME_t* split);
+extern RTC_UINT RTC_day_of_year_sse(uint32_t seconds_since_epoch);
+#define RTC_day_of_year(X) _Generic((X), \
+	RTC_TIME_t*: RTC_day_of_year_split, \
+    const RTC_TIME_t*: RTC_day_of_year_split, \
+    uint32_t: RTC_day_of_year_sse \
+)(X)
+
+extern void RTC_day_of_week_and_year_split(const RTC_TIME_t* split, RTC_UINT* day_of_week, RTC_UINT* day_of_year);
+extern void RTC_day_of_week_and_year_sse(uint32_t seconds_since_epoch, RTC_UINT* day_of_week, RTC_UINT* day_of_year);
+#define RTC_day_of_week_and_year(X, Y, Z) _Generic((X), \
+	RTC_TIME_t*: RTC_day_of_week_and_year_split, \
+    const RTC_TIME_t*: RTC_day_of_week_and_year_split, \
+    uint32_t: RTC_day_of_week_and_year_sse \
+)(X)
+
 extern uint32_t RTC_split_to_seconds_since_epoch(const RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split(uint32_t seconds_since_epoch, RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split_ex(uint32_t seconds_since_epoch, RTC_TIME_t* split, bool* is_leap_year, RTC_DEPTH_e depth);
+
 extern uint32_t RTC_ymd_to_days_since_epoch(const RTC_TIME_t *split);
+
 extern RTC_UINT RTC_dst_start_day_eu(RTC_UINT year);
 extern RTC_UINT RTC_dst_end_day_eu(RTC_UINT year);
+
 extern bool RTC_seconds_since_epoch_is_in_dst_eu(uint32_t seconds_since_epoch, bool* leap_year);
 extern uint32_t RTC_local_time_split(RTC_UINT year, RTC_UINT month, RTC_UINT day, RTC_UINT hour, RTC_UINT minute, RTC_UINT second, int32_t timezone_offset_seconds, bool eu_dst);
 extern uint32_t RTC_local_time_seconds_since_epoch(uint32_t seconds_since_epoch, int32_t timezone_offset_seconds, bool eu_dst);
@@ -128,7 +174,9 @@ static inline void RTC_tick(void)
 			{
 				RTC_time.hour = 0;
 				RTC_time.day++;
-				uint32_t dim = days_in_month[RTC_time.month - 1];
+				if ((RTC_time.month > 12) || (RTC_time.month < 1))
+					RTC_time.month = 1;
+				RTC_UINT dim = days_in_month[RTC_time.month - 1];
 				if ((RTC_time.month == 2) && (RTC_is_leap_year(RTC_time.year)))
 					dim++;
 				if (RTC_time.day > dim)
