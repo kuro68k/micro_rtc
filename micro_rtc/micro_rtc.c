@@ -47,7 +47,7 @@ bool RTC_is_leap_year(RTC_UINT year)
 * Return the number of days in the month. January is month 1. Returns 0 on
 * error.
 */
-RTC_UINT RTC_get_days_in_month(RTC_UINT month, RTC_UINT year)
+RTC_UINT RTC_days_in_month(RTC_UINT month, RTC_UINT year)
 {
 	if ((month == 0) || (month > 12))
 		return 0;
@@ -90,6 +90,58 @@ RTC_UINT RTC_day_of_week(const RTC_TIME_t *split)
 	dow += 5;	// 2000/01/01 is a Saturday
 	dow %= 7;
 	return dow;
+}
+
+/*****************************************************************************
+* Get the day of the year. 0 = January 1st.
+* Month = 1-12, day = 1-31.
+*/
+RTC_UINT RTC_day_of_year(const RTC_TIME_t *split)
+{
+	uint32_t	doy = split->day;
+
+	RTC_UINT m = 1;
+	while (m < split->month)
+	{
+		doy += days_in_month[m - 1];
+		if ((m == 2) && RTC_is_leap_year(split->year))
+			doy++;
+		m++;
+	}
+
+	return doy;
+}
+
+/*****************************************************************************
+* Get the day of the week. 0 = Monday.
+* Month = 1-12, day = 1-31.
+*/
+void RTC_day_of_week_and_year(const RTC_TIME_t *split, RTC_UINT* day_of_week, RTC_UINT* day_of_year)
+{
+	uint32_t	dow = split->day - 1;	// 2000/01/01 is day zero
+
+	RTC_UINT m = 1;
+	while (m < split->month)
+	{
+		dow += days_in_month[m - 1];
+		if ((m == 2) && RTC_is_leap_year(split->year))
+			dow++;
+		m++;
+	}
+
+	*day_of_year = dow;
+
+	RTC_UINT y = RTC_EPOCH_YEAR;
+	while (y < split->year)
+	{
+		dow += 365;
+		if (RTC_is_leap_year(y))
+			dow++;
+		y++;
+	}
+	dow += 5;	// 2000/01/01 is a Saturday
+	dow %= 7;
+	*day_of_week = dow;
 }
 
 /*****************************************************************************

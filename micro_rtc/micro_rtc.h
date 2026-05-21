@@ -86,8 +86,10 @@ extern volatile RTC_TIME_t RTC_time;
 * Public functions
 */
 extern bool RTC_is_leap_year(RTC_UINT year);
-extern RTC_UINT RTC_get_days_in_month(RTC_UINT month, RTC_UINT year);
+extern RTC_UINT RTC_days_in_month(RTC_UINT month, RTC_UINT year);
 extern RTC_UINT RTC_day_of_week(const RTC_TIME_t *split);
+extern RTC_UINT RTC_day_of_year(const RTC_TIME_t* split);
+extern void RTC_day_of_week_and_year(const RTC_TIME_t* split, RTC_UINT* day_of_week, RTC_UINT* day_of_year);
 extern uint32_t RTC_split_to_seconds_since_epoch(const RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split(uint32_t seconds_since_epoch, RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split_ex(uint32_t seconds_since_epoch, RTC_TIME_t* split, bool* is_leap_year, RTC_DEPTH_e depth);
