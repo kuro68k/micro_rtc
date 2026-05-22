@@ -20,8 +20,20 @@
 										// instead of iteration
 
 // fill these in with code to disable/enable the RTC tick interrupt
-#define	RTC_ENABLE_INTERRUPT	do{}while(0)
-#define	RTC_DISABLE_INTERRUPT	do{}while(0)
+
+// for bare metal STM32
+//#define	RTC_ENABLE_INTERRUPT	do{ taskEXIT_CRITICAL(); } while(0)
+//#define	RTC_DISABLE_INTERRUPT	do{ taskENTER_CRITICAL(); } while(0)
+// for FreeRTOS
+//#define	RTC_ENABLE_INTERRUPT	do{ __enable_irq(); } while(0)
+//#define	RTC_DISABLE_INTERRUPT	do{ __disable_irq(); } while(0)
+
+#ifndef RTC_ENABLE_INTERRUPT
+#error "RTC_ENABLE_INTERRUPT not configured for this platform"
+#endif
+#ifndef RTC_DISABLE_INTERRUPT
+#error "RTC_DISABLE_INTERRUPT not configured for this platform"
+#endif
 
 /******************************************************************************
 * Public definitions, enums and typedefs

@@ -10,4 +10,8 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET micro_rtc PROPERTY CXX_STANDARD 20)
 endif()
 
+# for testing
+add_compile_definitions(RTC_ENABLE_INTERRUPT="do{}while(0)")
+add_compile_definitions(RTC_DISABLE_INTERRUPT="do{}while(0)")
+
 # TODO: Add tests and install targets if needed.
