@@ -37,6 +37,7 @@
 */
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #define	SECONDS_PER_MINUTE			(60)
 #define	SECONDS_PER_HOUR			(60 * 60)
@@ -113,6 +114,17 @@ extern volatile RTC_TIME_t RTC_time;
 /******************************************************************************
 * Public functions
 */
+
+// time handling
+extern uint32_t RTC_add_seconds_sse(uint32_t seconds_since_epoch, int32_t seconds);
+extern void RTC_add_seconds_split(RTC_TIME_t* split, int32_t seconds);
+#define RTC_add_seconds(X, Y) _Generic((X), \
+	RTC_TIME_t*: RTC_add_seconds_split, \
+    const RTC_TIME_t*: RTC_add_seconds_split, \
+    uint32_t: RTC_add_seconds_sse \
+)(X, Y)
+
+// date handling
 extern bool RTC_is_leap_year(RTC_UINT year);
 extern bool RTC_is_leap_year_sse(uint32_t seconds_since_epoch);
 
@@ -140,20 +152,30 @@ extern void RTC_day_of_week_and_year_sse(uint32_t seconds_since_epoch, RTC_UINT*
 	RTC_TIME_t*: RTC_day_of_week_and_year_split, \
     const RTC_TIME_t*: RTC_day_of_week_and_year_split, \
     uint32_t: RTC_day_of_week_and_year_sse \
-)(X)
+)(X, Y, Z)
 
+// conversion between time formats
 extern uint32_t RTC_split_to_seconds_since_epoch(const RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split(uint32_t seconds_since_epoch, RTC_TIME_t *split);
 extern void RTC_seconds_since_epoch_to_split_ex(uint32_t seconds_since_epoch, RTC_TIME_t* split, bool* is_leap_year, RTC_DEPTH_e depth);
 
 extern uint32_t RTC_ymd_to_days_since_epoch(const RTC_TIME_t *split);
 
+// daylight saving time
 extern RTC_UINT RTC_dst_start_day_eu(RTC_UINT year);
 extern RTC_UINT RTC_dst_end_day_eu(RTC_UINT year);
+extern uint32_t RTC_dst_start_time_eu_sse(RTC_UINT year);
+extern void RTC_dst_start_time_eu_split(RTC_TIME_t* rtc);
+extern uint32_t RTC_dst_end_time_eu_sse(RTC_UINT year);
+extern void RTC_dst_end_time_eu_split(RTC_TIME_t* rtc);
+extern bool RTC_is_in_dst_eu_sse(uint32_t seconds_since_epoch, bool* leap_year);
+extern bool RTC_is_in_dst_eu_split(const RTC_TIME_t* rtc);
 
-extern bool RTC_seconds_since_epoch_is_in_dst_eu(uint32_t seconds_since_epoch, bool* leap_year);
+// time zones
 extern uint32_t RTC_local_time_split(RTC_UINT year, RTC_UINT month, RTC_UINT day, RTC_UINT hour, RTC_UINT minute, RTC_UINT second, int32_t timezone_offset_seconds, bool eu_dst);
 extern uint32_t RTC_local_time_seconds_since_epoch(uint32_t seconds_since_epoch, int32_t timezone_offset_seconds, bool eu_dst);
+
+// get/set time
 #ifdef RTC_MODE_SECONDS_SINCE_EPOCH
 extern uint32_t RTC_get_time(void);
 #else

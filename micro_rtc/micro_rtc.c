@@ -376,7 +376,8 @@ uint32_t RTC_ymd_to_days_since_epoch(const RTC_TIME_t *split)
 
 /*****************************************************************************
 * Calculate DST start and end dates using the EU scheme.
-* Start month is March, end month is October.
+* Start is last Sunday in March.
+* End is last Sunday in October.
 * Start and end times are 01:00.
 * Only valid from year 2000 onwards.
 */
@@ -394,31 +395,91 @@ RTC_UINT RTC_dst_end_day_eu(RTC_UINT year)
 /*****************************************************************************
 * Calculate DST start and end times using the EU scheme.
 */
-uint32_t RTC_dst_start_seconds_since_epoch_eu(RTC_UINT year)
+uint32_t RTC_dst_start_time_eu_sse(RTC_UINT year)
 {
-	RTC_TIME_t split = { .year = year, .month = 3, .hour = 0, .minute = 0, .second = 0 };
+	RTC_TIME_t split = { .year = year, .month = 3, .hour = 1, .minute = 0, .second = 0 };
 	split.day = RTC_dst_start_day_eu(year);
 	return RTC_split_to_seconds_since_epoch(&split);
 }
-uint32_t RTC_dst_end_seconds_since_epoch_eu(RTC_UINT year)
+void RTC_dst_start_time_eu_split(RTC_TIME_t* rtc)
 {
-	RTC_TIME_t split = { .year = year, .month = 10, .hour = 0, .minute = 0, .second = 0 };
+	rtc->month = 3;
+	rtc->day = RTC_dst_start_day_eu(rtc->year);
+	rtc->hour = 1;
+	rtc->minute = 0;
+	rtc->second = 0;
+}
+
+uint32_t RTC_dst_end_time_eu_sse(RTC_UINT year)
+{
+	RTC_TIME_t split = { .year = year, .month = 10, .hour = 1, .minute = 0, .second = 0 };
 	split.day = RTC_dst_end_day_eu(year);
 	return RTC_split_to_seconds_since_epoch(&split);
+}
+void RTC_dst_end_time_eu_split(RTC_TIME_t* rtc)
+{
+	rtc->month = 10;
+	rtc->day = RTC_dst_end_day_eu(rtc->year);
+	rtc->hour = 1;
+	rtc->minute = 0;
+	rtc->second = 0;
 }
 
 /*****************************************************************************
 * Check if an SSE time is inside EU DST.
 * leap_year can be NULL if not used.
 */
-bool RTC_seconds_since_epoch_is_in_dst_eu(uint32_t seconds_since_epoch, bool *leap_year)
+bool RTC_is_in_dst_eu_sse(uint32_t seconds_since_epoch, bool *leap_year)
 {
 	// get year
 	RTC_TIME_t time;
 	RTC_seconds_since_epoch_to_split_ex(seconds_since_epoch, &time, leap_year, RTC_DEPTH_Y);
-	uint32_t start_time = RTC_dst_start_seconds_since_epoch_eu(time.year);
-	uint32_t end_time = RTC_dst_end_seconds_since_epoch_eu(time.year);
+	uint32_t start_time = RTC_dst_start_time_eu_sse(time.year);
+	uint32_t end_time = RTC_dst_end_time_eu_sse(time.year);
 	return ((seconds_since_epoch >= start_time) && (seconds_since_epoch < end_time));
+}
+
+int compare_times_split(const RTC_TIME_t* a, const RTC_TIME_t* b)
+{
+	if (a->year < b->year)
+		return -1;
+	if (a->year > b->year)
+		return 1;
+	// year is equal
+	if (a->month < b->month)
+		return -1;
+	if (a->month > b->month)
+		return 1;
+	// year and month are equal
+	if (a->day < b->day)
+		return -1;
+	if (a->day > b->day)
+		return 1;
+	// year, month, day are equal
+	if (a->hour < b->hour)
+		return -1;
+	if (a->hour > b->hour)
+		return 1;
+	// ymd and hour are equal
+	if (a->minute < b->minute)
+		return -1;
+	if (a->minute > b->minute)
+		return 1;
+	// ymd, hm are equal
+	if (a->second < b->second)
+		return -1;
+	if (a->second > b->second)
+		return 1;
+	// times are equal
+	return 0;
+}
+
+bool RTC_is_in_dst_eu_split(const RTC_TIME_t* rtc)
+{
+	uint32_t rtc_time = RTC_split_to_seconds_since_epoch(rtc);
+	uint32_t start_time = RTC_dst_start_time_eu_sse(rtc->year);
+	uint32_t end_time = RTC_dst_end_time_eu_sse(rtc->year);
+	return ((rtc_time >= start_time) && (rtc_time < end_time));
 }
 
 /*****************************************************************************
@@ -467,7 +528,7 @@ uint32_t RTC_local_time_seconds_since_epoch(
 	else
 		seconds_since_epoch += seconds_offset;
 
-	if (eu_dst && RTC_seconds_since_epoch_is_in_dst_eu(seconds_since_epoch, NULL))
+	if (eu_dst && RTC_is_in_dst_eu_sse(seconds_since_epoch, NULL))
 		seconds_since_epoch += SECONDS_PER_HOUR;
 
 	return seconds_since_epoch;
